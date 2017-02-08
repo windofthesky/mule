@@ -14,11 +14,12 @@ import static java.lang.Runtime.getRuntime;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.mule.runtime.api.i18n.I18nMessageFactory.createStaticMessage;
 import static org.mule.runtime.core.api.scheduler.SchedulerConfig.config;
+import static org.mule.runtime.core.api.lifecycle.LifecycleUtils.initialiseIfNeeded;
 import static org.mule.service.http.api.HttpHeaders.Names.CONNECTION;
 import static org.mule.service.http.api.HttpHeaders.Values.CLOSE;
-
 import org.mule.runtime.api.exception.MuleRuntimeException;
 import org.mule.runtime.api.scheduler.Scheduler;
+import org.mule.runtime.api.lifecycle.InitialisationException;
 import org.mule.runtime.api.tls.TlsContextFactory;
 import org.mule.runtime.api.tls.TlsContextTrustStoreConfiguration;
 import org.mule.runtime.core.api.scheduler.SchedulerService;
@@ -28,6 +29,7 @@ import org.mule.runtime.module.http.internal.request.grizzly.CompositeTransportC
 import org.mule.runtime.module.http.internal.request.grizzly.CustomTimeoutThrottleRequestFilter;
 import org.mule.runtime.module.http.internal.request.grizzly.IOStrategyTransportCustomizer;
 import org.mule.runtime.module.http.internal.request.grizzly.LoggerTransportCustomizer;
+import org.mule.runtime.module.tls.internal.DefaultTlsContextFactory;
 import org.mule.service.http.api.client.HttpAuthenticationType;
 import org.mule.service.http.api.client.HttpClient;
 import org.mule.service.http.api.client.HttpClientConfiguration;
@@ -136,7 +138,9 @@ public class GrizzlyHttpClient implements HttpClient {
   }
 
   private void configureTlsContext(AsyncHttpClientConfig.Builder builder) {
+    TlsContextFactory resolvedTlsContextFactory;
     if (tlsContextFactory != null) {
+      resolvedTlsContextFactory = tlsContextFactory;
       try {
         sslContext = tlsContextFactory.createSslContext();
       } catch (Exception e) {
@@ -145,13 +149,7 @@ public class GrizzlyHttpClient implements HttpClient {
 
       // This sets all the TLS configuration needed, except for the enabled protocols and cipher suites.
       builder.setSSLContext(sslContext);
-      // These complete the set up
-      if (tlsContextFactory.getEnabledCipherSuites() != null) {
-        builder.setEnabledCipherSuites(tlsContextFactory.getEnabledCipherSuites());
-      }
-      if (tlsContextFactory.getEnabledProtocols() != null) {
-        builder.setEnabledProtocols(tlsContextFactory.getEnabledProtocols());
-      }
+
       TlsContextTrustStoreConfiguration trustStoreConfiguration = tlsContextFactory.getTrustStoreConfiguration();
 
       if (trustStoreConfiguration != null && trustStoreConfiguration.isInsecure()) {
@@ -161,6 +159,21 @@ public class GrizzlyHttpClient implements HttpClient {
         // This disables hostname verification
         builder.setAcceptAnyCertificate(true);
       }
+    } else {
+      //TODO: MULE-11767 - Replace with DefaultTlsContextFactoryBuilder or a TLS service that provides a single default instance
+      resolvedTlsContextFactory = new DefaultTlsContextFactory();
+      try {
+        initialiseIfNeeded(resolvedTlsContextFactory);
+      } catch (InitialisationException e) {
+        logger.warn("Default TLS configuration could not be initialised.");
+      }
+    }
+    // These complete the set up, they must always be set in case an implicit SSL connection is used
+    if (resolvedTlsContextFactory.getEnabledCipherSuites() != null) {
+      builder.setEnabledCipherSuites(resolvedTlsContextFactory.getEnabledCipherSuites());
+    }
+    if (resolvedTlsContextFactory.getEnabledProtocols() != null) {
+      builder.setEnabledProtocols(resolvedTlsContextFactory.getEnabledProtocols());
     }
   }
 

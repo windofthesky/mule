@@ -12,7 +12,7 @@
     <oauth:token-manager-config name="oauthConfig"/>
 
     <httpn:request-config name="requestConfig">
-        <httpn:request-connection>
+        <httpn:request-connection host="localhost" port="${oauth.server.port}">
             <httpn:authentication>
                 <oauth:authorization-code-grant-type
                         clientId="${client.id}"
@@ -29,7 +29,7 @@
     </httpn:request-config>
 
     <flow name="testFlow">
-        <httpn:request host="localhost" port="${oauth.server.port}" path="/resource" method="POST"
+        <httpn:request path="/resource" method="POST"
                       config-ref="requestConfig"/>
         <object-to-string-transformer />
     </flow>
