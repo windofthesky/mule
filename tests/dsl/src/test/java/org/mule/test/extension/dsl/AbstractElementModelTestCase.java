@@ -55,8 +55,8 @@ import org.w3c.dom.Element;
         "org.mule.modules:mule-module-sockets",
         "org.mule.modules:mule-module-http-ext",
         "org.mule.modules:mule-module-db",
-        "org.mule.modules:mule-module-jms",
-        "com.mulesoft.weave:mule-plugin-weave"},
+        "com.mulesoft.weave:mule-plugin-weave",
+        "org.mule.modules:mule-module-jms"},
     providedInclusions = "org.mule.modules:mule-module-sockets")
 public abstract class AbstractElementModelTestCase extends MuleArtifactFunctionalTestCase {
 
@@ -75,11 +75,6 @@ public abstract class AbstractElementModelTestCase extends MuleArtifactFunctiona
   protected DslElementModelFactory modelResolver;
   protected ApplicationModel applicationModel;
   protected Document doc;
-
-  @Override
-  protected String getConfigFile() {
-    return "integration-multi-config-dsl-app.xml";
-  }
 
   @Before
   public void setup() throws Exception {
@@ -160,9 +155,8 @@ public abstract class AbstractElementModelTestCase extends MuleArtifactFunctiona
     InputStream appIs = Thread.currentThread().getContextClassLoader().getResourceAsStream(getConfigFile());
     checkArgument(appIs != null, "The given application was not found as resource");
 
-    Document document = new XmlConfigurationDocumentLoader().loadDocument(
-                                                                          of(muleContext.getExtensionManager()), getConfigFile(),
-                                                                          appIs);
+    Document document = new XmlConfigurationDocumentLoader()
+        .loadDocument(of(muleContext.getExtensionManager()), getConfigFile(), appIs);
 
     ConfigLine configLine = new XmlApplicationParser(new SpiServiceRegistry())
         .parse(document.getDocumentElement())
@@ -199,10 +193,12 @@ public abstract class AbstractElementModelTestCase extends MuleArtifactFunctiona
     Element mule = doc.createElement("mule");
     doc.appendChild(mule);
     mule.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns", "http://www.mulesoft.org/schema/mule/core");
-
     mule.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance",
-                        "xsi:schemaLocation",
-                        "http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd http://www.mulesoft.org/schema/mule/jmsn http://www.mulesoft.org/schema/mule/jmsn/current/mule-jmsn.xsd http://www.mulesoft.org/schema/mule/sockets http://www.mulesoft.org/schema/mule/sockets/current/mule-sockets.xsd http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/httpn http://www.mulesoft.org/schema/mule/httpn/current/mule-httpn.xsd");
+                        "xsi:schemaLocation", getExpectedSchemaLocation());
+  }
+
+  protected String getExpectedSchemaLocation() {
+    return "http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd http://www.mulesoft.org/schema/mule/sockets http://www.mulesoft.org/schema/mule/sockets/current/mule-sockets.xsd http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/httpn http://www.mulesoft.org/schema/mule/httpn/current/mule-httpn.xsd";
   }
 
   protected void assertValue(DslElementModel elementModel, String value) {
